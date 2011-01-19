@@ -826,7 +826,7 @@ module Formtastic #:nodoc:
           # The grouped_options_select is a bit counter intuitive and not optimised (mostly due to ActiveRecord).
           # The formtastic user however shouldn't notice this too much.
           raw_collection = find_raw_collection_for_column(method, options.reverse_merge(:find_options => { :include => options[:group_by] }))
-          label, value = detect_label_and_value_method!(raw_collection, options)
+          label, value, li_class = detect_label_and_value_and_li_class_method!(raw_collection, options)
           group_collection = raw_collection.map { |option| option.send(options[:group_by]) }.uniq
           group_label_method = options[:group_label_method] || detect_label_method(group_collection)
           group_collection = group_collection.sort_by { |group_item| group_item.send(group_label_method) }
@@ -1159,6 +1159,7 @@ module Formtastic #:nodoc:
         unchecked_value = options.delete(:unchecked_value) || ''
         html_options    = { :name => "#{@object_name}[#{input_name}][]" }.merge(html_options)
         input_ids       = []
+        li_class_method = options.delete(:li_class_method)
 
         selected_values = find_selected_values_for_column(method, options)
         disabled_option_is_present = options.key?(:disabled)
@@ -1168,7 +1169,7 @@ module Formtastic #:nodoc:
 
         list_item_content = collection.map do |c|
           label = c.is_a?(Array) ? c.first : c
-          value = c.is_a?(Array) ? c.last : c
+          value = c.is_a?(Array) ? c.[1] : c
           input_id = generate_html_id(input_name, value.to_s.gsub(/\s/, '_').gsub(/\W/, '').downcase)
           input_ids << input_id
 
@@ -1181,7 +1182,7 @@ module Formtastic #:nodoc:
             :for => input_id
           )
 
-          li_options = value_as_class ? { :class => [method.to_s.singularize, value.to_s.downcase].join('_') } : {}
+          li_options = value_as_class ? { :class => [method.to_s.singularize, value.to_s.downcase].join('_') } : (li_class_method ? { :class => c.last } : {})
           template.content_tag(:li, Formtastic::Util.html_safe(li_content), li_options)
         end
 
@@ -1199,7 +1200,7 @@ module Formtastic #:nodoc:
       def find_selected_values_for_column(method, options)
         if object.respond_to?(method)
           collection = [object.send(method)].compact.flatten
-          label, value = detect_label_and_value_method!(collection, options)
+          label, value, li_class = detect_label_and_value_and_li_class_method!(collection, options)
           [*collection.map { |o| send_or_call(value, o) }].compact
         else
           []
@@ -1492,10 +1493,10 @@ module Formtastic #:nodoc:
         # Return if we have an Array of strings, fixnums or arrays
         return collection if (collection.instance_of?(Array) || collection.instance_of?(Range)) &&
                              [Array, Fixnum, String, Symbol].include?(collection.first.class) &&
-                             !(options.include?(:label_method) || options.include?(:value_method))
+                             !(options.include?(:label_method) || options.include?(:value_method) || options.include?(:li_class_method))
 
-        label, value = detect_label_and_value_method!(collection, options)
-        collection.map { |o| [send_or_call(label, o), send_or_call(value, o)] }
+        label, value, li_class = detect_label_and_value_and_li_class_method!(collection, options)
+        collection.map { |o| [send_or_call(label, o), send_or_call(value, o), (li_class ? send_or_call(li_class, o) : nil)] }
       end
 
       # As #find_collection_for_column but returns the collection without mapping the label and value
@@ -1529,7 +1530,7 @@ module Formtastic #:nodoc:
       # classes sensible defaults have been defined. It will use and delete the options
       # :label_method and :value_methods when present.
       #
-      def detect_label_and_value_method!(collection, options = {})
+      def detect_label_and_value_and_li_class_method!(collection, options = {})
         sample = collection.first || collection.last
 
         case sample
@@ -1544,15 +1545,16 @@ module Formtastic #:nodoc:
         # Order of preference: user supplied method, class defaults, auto-detect
         label = options[:label_method] || label || collection_label_methods.find { |m| sample.respond_to?(m) }
         value = options[:value_method] || value || collection_value_methods.find { |m| sample.respond_to?(m) }
+        li_class = options[:li_class_method]
 
-        [label, value]
+        [label, value, li_class]
       end
 
       # Return the label collection method when none is supplied using the
       # values set in collection_label_methods.
       #
       def detect_label_method(collection) #:nodoc:
-        detect_label_and_value_method!(collection).first
+        detect_label_and_value_and_li_class_method!(collection).first
       end
 
       # Detects the method to call for fetching group members from the groups when grouping select options
