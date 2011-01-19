@@ -1169,7 +1169,7 @@ module Formtastic #:nodoc:
 
         list_item_content = collection.map do |c|
           label = c.is_a?(Array) ? c.first : c
-          value = c.is_a?(Array) ? c.[1] : c
+          value = c.is_a?(Array) ? c[1] : c
           input_id = generate_html_id(input_name, value.to_s.gsub(/\s/, '_').gsub(/\W/, '').downcase)
           input_ids << input_id
 
