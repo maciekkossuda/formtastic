@@ -838,7 +838,7 @@ module Formtastic #:nodoc:
                                          value, label,
                                          strip_formtastic_options(options), html_options)
         else
-          collection = find_collection_for_column(method, options)
+          collection = find_collection_for_column(method, options).map{ |a| [a.first, a[1]] }
 
           select(input_name, collection, strip_formtastic_options(options), html_options)
         end
